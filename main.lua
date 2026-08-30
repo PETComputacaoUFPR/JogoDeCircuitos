@@ -75,10 +75,10 @@ local gateDestinations = {
 local chairs = {
     {x = 300, y = 2218, map = "level1", collisionMap = level1Map, requires = {}},
     {x = 1540, y = 2213, map = "level2", collisionMap = level2Map, requires = {"level1"}},
-    {x = 358, y = 1573, map = "level3", collisionMap = level3Map, requires = {"level1", "level2"}},
-    {x = 1587, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
-    {x = 358, y = 930, map = "level5", collisionMap = level5Map, requires = {"level1", "level2", "level3", "level4"}},
-    {x = 1587, y = 930, map = "level6", collisionMap = level6Map, requires = {"level1", "level2", "level3", "level4", "level5"}}
+    {x = 290, y = 1573, map = "level3", collisionMap = level3Map, requires = {"level1", "level2"}},
+    {x = 1520, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
+    {x = 300, y = 930, map = "level5", collisionMap = level5Map, requires = {"level1", "level2", "level3", "level4"}},
+    {x = 1540, y = 930, map = "level6", collisionMap = level6Map, requires = {"level1", "level2", "level3", "level4", "level5"}}
 }
 
 -- Posição das moedas no level3
@@ -101,28 +101,28 @@ local numberStage3 = {
 CorrectNumberStage3 = { 1, 0, 1, 1}
 
 local numberStage4N = {
-    { x = 620, y = 480, num = nil },
-    { x = 830, y = 480, num = nil },
-    { x = 1000, y = 480, num = nil },
-    { x = 1200, y = 480, num = nil }
+    { x = 640, y = 275, num = nil },
+    { x = 830, y = 275, num = nil },
+    { x = 1025, y = 275, num = nil },
+    { x = 1215, y = 275, num = nil }
 }
 
 local CorrectNumberStage4N = { 0, 1, 1, 0} -- 6 
 
 local numberStage4C1 = {
-    { x = 572, y = 845, num = nil },
-    { x = 772, y = 845, num = nil },
-    { x = 962, y = 845, num = nil },
-    { x = 1146, y = 845, num = nil }
+    { x = 640, y = 470, num = nil },
+    { x = 830, y = 470, num = nil },
+    { x = 1025, y = 470, num = nil },
+    { x = 1215, y = 470, num = nil }
 }
 
 local CorrectNumberStage4C1 = { 1, 0, 0, 1}
 
 local numberStage4C2 = {
-    { x = 572, y = 1236, num = nil },
-    { x = 772, y = 1236, num = nil },
-    { x = 962, y = 1236, num = nil },
-    { x = 1146, y = 1236, num = nil }
+    { x = 640, y = 660, num = nil },
+    { x = 830, y = 660, num = nil },
+    { x = 1025, y = 660, num = nil },
+    { x = 1215, y = 660, num = nil }
 }
 
 local CorrectNumberStage4C2 = { 1, 0, 1, 0}
@@ -130,10 +130,10 @@ local CorrectNumberStage4C2 = { 1, 0, 1, 0}
 local previousPlayerX, previousPlayerY
 
 local interactionStates = {
-    level1 = true, 
-    level2 = true,
-    level3 = true,
-    level4 = true,
+    level1 = false, 
+    level2 = false,
+    level3 = false,
+    level4 = false,
     level5 = true,
     level6 = true
 }
@@ -702,13 +702,13 @@ function love.draw()
             if msgBlockedLevel.alreadyFinished then 
                 -- Posição da mensagem em relação ao jogador
                 local messageX = chairs[msgBlockedLevel.level].x
-                local messageY = chairs[msgBlockedLevel].y - 100
+                local messageY = chairs[msgBlockedLevel.level].y - 100
 
                 love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
 
                 love.graphics.setFont(fontSmall)
                 love.graphics.setColor(0, 0, 0, 1) -- Cor preta
-                love.graphics.printf("Você já completou esse!", messageX, messageY, 100, "center")
+                love.graphics.printf("Voce ja completou esse!", messageX, messageY, 100, "center")
                 love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
             end 
             --world:draw()
@@ -952,7 +952,11 @@ function love.keypressed(key)
         sounds.blip:play()
     end
     if key == 'z' then
-        sounds.music:stop()
+        if sounds.music:isPlaying() then
+            sounds.music:pause()
+        else
+            sounds.music:play()
+        end
     end
  
     if key == 'b' then -- Botão para comprar binários
