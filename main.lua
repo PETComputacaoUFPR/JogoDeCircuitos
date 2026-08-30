@@ -73,8 +73,8 @@ local gateDestinations = {
 }
 
 local chairs = {
-    {x = 352, y = 2218, map = "level1", collisionMap = level1Map, requires = {}},
-    {x = 1567, y = 2213, map = "level2", collisionMap = level2Map, requires = {"level1"}},
+    {x = 300, y = 2218, map = "level1", collisionMap = level1Map, requires = {}},
+    {x = 1540, y = 2213, map = "level2", collisionMap = level2Map, requires = {"level1"}},
     {x = 358, y = 1573, map = "level3", collisionMap = level3Map, requires = {"level1", "level2"}},
     {x = 1587, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
     {x = 358, y = 930, map = "level5", collisionMap = level5Map, requires = {"level1", "level2", "level3", "level4"}},
@@ -239,6 +239,12 @@ local barreiras = {
     art = "bloqueioarte_3",
     requer = {"level5", "level6"}
     }
+}
+
+local msgBlockedLevel = {
+    level = "",
+    unmetRequirements = false,
+    alreadyFinished = false
 }
 
 local function barreiraCumprida(barreira)
@@ -669,8 +675,8 @@ function love.draw()
 
             if showInteractionMessage then
                 -- Posição da mensagem em relação ao jogador
-                local messageX = chairs[1].x - 30
-                local messageY = chairs[1].y - 50
+                local messageX = chairs[1].x
+                local messageY = chairs[1].y - 100
 
                 love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
 
@@ -679,6 +685,32 @@ function love.draw()
                 love.graphics.printf("aperte E para interagir", messageX, messageY, 100, "center")
                 love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
             end
+
+            if msgBlockedLevel.unmetRequirements then 
+                -- Posição da mensagem em relação ao jogador
+                local messageX = chairs[msgBlockedLevel.level].x
+                local messageY = chairs[msgBlockedLevel.level].y - 100
+
+                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
+
+                love.graphics.setFont(fontSmall)
+                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
+                love.graphics.printf("Complete o level anterior!", messageX, messageY, 100, "center")
+                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+            end
+
+            if msgBlockedLevel.alreadyFinished then 
+                -- Posição da mensagem em relação ao jogador
+                local messageX = chairs[msgBlockedLevel.level].x
+                local messageY = chairs[msgBlockedLevel].y - 100
+
+                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
+
+                love.graphics.setFont(fontSmall)
+                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
+                love.graphics.printf("Você já completou esse!", messageX, messageY, 100, "center")
+                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+            end 
             --world:draw()
         cam:detach() 
     end
@@ -1108,8 +1140,18 @@ function isNearInteractionObject()
       if math.sqrt((playerX - chair.x)^2 + (playerY - chair.y)^2) < 83 then
       -- Verifica se o nível correspondente está ativo
          if interactionStates[chair.map] and levelDesbloqueado(chair) then
+            msgBlockedLevel.alreadyFinished = false
+            msgBlockedLevel.unmetRequirements = false
             return true, i
-         end
+         elseif interactionStates[chair.map] == false then
+            msgBlockedLevel.alreadyFinished = true
+            msgBlockedLevel.unmetRequirements = false
+            msgBlockedLevel.level = i
+         else 
+            msgBlockedLevel.unmetRequirements = true
+            msgBlockedLevel.alreadyFinished = false
+            msgBlockedLevel.level = i
+         end 
       end
    end
 
