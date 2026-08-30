@@ -73,12 +73,12 @@ local gateDestinations = {
 }
 
 local chairs = {
-    {x = 352, y = 2218, map = "level1", collisionMap = level1Map},
-    {x = 1567, y = 2213, map = "level2", collisionMap = level2Map},
-    {x = 358, y = 1573, map = "level3", collisionMap = level3Map},
-    {x = 1587, y = 1573, map = "level4", collisionMap = level4Map},	
-    {x = 358, y = 930, map = "level5", collisionMap = level5Map},
-    {x = 1587, y = 930, map = "level6", collisionMap = level6Map}
+    {x = 352, y = 2218, map = "level1", collisionMap = level1Map, requires = {}},
+    {x = 1567, y = 2213, map = "level2", collisionMap = level2Map, requires = {"level1"}},
+    {x = 358, y = 1573, map = "level3", collisionMap = level3Map, requires = {"level1", "level2"}},
+    {x = 1587, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
+    {x = 358, y = 930, map = "level5", collisionMap = level5Map, requires = {"level1", "level2", "level3", "level4"}},
+    {x = 1587, y = 930, map = "level6", collisionMap = level6Map, requires = {"level1", "level2", "level3", "level4", "level5"}}
 }
 
 -- Posição das moedas no level3
@@ -249,6 +249,17 @@ local function barreiraCumprida(barreira)
     end
     return true
 end
+
+local function levelDesbloqueado(chair)
+    for _, requirement in ipairs(chair.requires) do
+        --print(requirement)
+        if interactionStates[requirement] ~= false then
+            return false
+        end
+    end
+    return true
+end
+
 -- Função que verifica quando o mouse clica nos botões
 function love.mousepressed(x, y, button, istouch, presses) 
     if not game.state["running"] then
@@ -1096,7 +1107,7 @@ function isNearInteractionObject()
       -- A distância é baseada em uma circuferência de raio 83
       if math.sqrt((playerX - chair.x)^2 + (playerY - chair.y)^2) < 83 then
       -- Verifica se o nível correspondente está ativo
-         if interactionStates[chair.map] then
+         if interactionStates[chair.map] and levelDesbloqueado(chair) then
             return true, i
          end
       end
