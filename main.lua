@@ -863,16 +863,20 @@ local function checkGatePositions()
     end
 
     if currentMap == "level2" then
-        if isGateAtCorrectPosition(andGate, gateDestinations[2]) and 
-           isGateAtCorrectPosition(andGateExtra, gateDestinations[3]) and
-           isGateAtCorrectPosition(orGate, gateDestinations[4]) then
-            -- Portas estão na posição correta, vá para o mapa principal
-            interactionStates.level2 = false
-            changeGameState("running")
-            clearColliders()
-            loadMapCollisions(gameMap)
-            loadBarreiras()
-            currentMap = "mainMap"
+        if currentMap == "level2" then
+            local andSlot1 = isGateAtCorrectPosition(andGate, gateDestinations[2]) or isGateAtCorrectPosition(andGateExtra, gateDestinations[2])
+            local andSlot2 = isGateAtCorrectPosition(andGate, gateDestinations[3]) or isGateAtCorrectPosition(andGateExtra, gateDestinations[3])
+            local orCorrect = isGateAtCorrectPosition(orGate, gateDestinations[4])
+
+            if andSlot1 and andSlot2 and orCorrect then
+                -- Portas estão na posição correta, vá para o mapa principal
+                interactionStates.level2 = false
+                changeGameState("running")
+                clearColliders()
+                loadMapCollisions(gameMap)
+                loadBarreiras()
+                currentMap = "mainMap"
+            end
         end
     end
 
@@ -1026,11 +1030,9 @@ function love.keypressed(key)
             if currentMap == "level2" then
                 if isNearGate(andGate) then
                     andGate.beingCarried = not andGate.beingCarried
-                end
-                if isNearGate(andGateExtra) then
+                elseif isNearGate(andGateExtra) then
                     andGateExtra.beingCarried = not andGateExtra.beingCarried
-                end
-                if isNearGate(orGate) then
+                elseif isNearGate(orGate) then
                     orGate.beingCarried = not orGate.beingCarried
                 end
                 checkGatePositions()
