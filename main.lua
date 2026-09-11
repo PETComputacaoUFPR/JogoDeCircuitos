@@ -130,10 +130,10 @@ local CorrectNumberStage4C2 = { 1, 0, 1, 0}
 local previousPlayerX, previousPlayerY
 
 local interactionStates = {
-    level1 = false, 
-    level2 = false,
-    level3 = false,
-    level4 = false,
+    level1 = true, 
+    level2 = true,
+    level3 = true,
+    level4 = true,
     level5 = true,
     level6 = true
 }
