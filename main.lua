@@ -73,12 +73,12 @@ local gateDestinations = {
 }
 
 local chairs = {
-    {x = 352, y = 2218, map = "level1", collisionMap = level1Map},
-    {x = 1567, y = 2213, map = "level2", collisionMap = level2Map},
-    {x = 358, y = 1573, map = "level3", collisionMap = level3Map},
-    {x = 1587, y = 1573, map = "level4", collisionMap = level4Map},	
-    {x = 358, y = 930, map = "level5", collisionMap = level5Map},
-    {x = 1587, y = 930, map = "level6", collisionMap = level6Map}
+    {x = 300, y = 2218, map = "level1", collisionMap = level1Map, requires = {}},
+    {x = 1540, y = 2213, map = "level2", collisionMap = level2Map, requires = {"level1"}},
+    {x = 290, y = 1573, map = "level3", collisionMap = level3Map, requires = {"level1", "level2"}},
+    {x = 1520, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
+    {x = 300, y = 930, map = "level5", collisionMap = level5Map, requires = {"level1", "level2", "level3", "level4"}},
+    {x = 1540, y = 930, map = "level6", collisionMap = level6Map, requires = {"level1", "level2", "level3", "level4", "level5"}}
 }
 
 -- Posição das moedas no level3
@@ -101,28 +101,28 @@ local numberStage3 = {
 CorrectNumberStage3 = { 1, 0, 1, 1}
 
 local numberStage4N = {
-    { x = 620, y = 480, num = nil },
-    { x = 830, y = 480, num = nil },
-    { x = 1000, y = 480, num = nil },
-    { x = 1200, y = 480, num = nil }
+    { x = 640, y = 275, num = nil },
+    { x = 830, y = 275, num = nil },
+    { x = 1025, y = 275, num = nil },
+    { x = 1215, y = 275, num = nil }
 }
 
 local CorrectNumberStage4N = { 0, 1, 1, 0} -- 6 
 
 local numberStage4C1 = {
-    { x = 572, y = 845, num = nil },
-    { x = 772, y = 845, num = nil },
-    { x = 962, y = 845, num = nil },
-    { x = 1146, y = 845, num = nil }
+    { x = 640, y = 470, num = nil },
+    { x = 830, y = 470, num = nil },
+    { x = 1025, y = 470, num = nil },
+    { x = 1215, y = 470, num = nil }
 }
 
 local CorrectNumberStage4C1 = { 1, 0, 0, 1}
 
 local numberStage4C2 = {
-    { x = 572, y = 1236, num = nil },
-    { x = 772, y = 1236, num = nil },
-    { x = 962, y = 1236, num = nil },
-    { x = 1146, y = 1236, num = nil }
+    { x = 640, y = 660, num = nil },
+    { x = 830, y = 660, num = nil },
+    { x = 1025, y = 660, num = nil },
+    { x = 1215, y = 660, num = nil }
 }
 
 local CorrectNumberStage4C2 = { 1, 0, 1, 0}
@@ -130,10 +130,10 @@ local CorrectNumberStage4C2 = { 1, 0, 1, 0}
 local previousPlayerX, previousPlayerY
 
 local interactionStates = {
-    level1 = true, 
-    level2 = true,
-    level3 = true,
-    level4 = true,
+    level1 = false, 
+    level2 = false,
+    level3 = false,
+    level4 = false,
     level5 = true,
     level6 = true
 }
@@ -241,6 +241,12 @@ local barreiras = {
     }
 }
 
+local msgBlockedLevel = {
+    level = "",
+    unmetRequirements = false,
+    alreadyFinished = false
+}
+
 local function barreiraCumprida(barreira)
     for _, lvl in ipairs(barreira.requer) do
         if interactionStates[lvl] ~= false then
@@ -249,6 +255,17 @@ local function barreiraCumprida(barreira)
     end
     return true
 end
+
+local function levelDesbloqueado(chair)
+    for _, requirement in ipairs(chair.requires) do
+        --print(requirement)
+        if interactionStates[requirement] ~= false then
+            return false
+        end
+    end
+    return true
+end
+
 -- Função que verifica quando o mouse clica nos botões
 function love.mousepressed(x, y, button, istouch, presses) 
     if not game.state["running"] then
@@ -658,8 +675,8 @@ function love.draw()
 
             if showInteractionMessage then
                 -- Posição da mensagem em relação ao jogador
-                local messageX = chairs[1].x - 30
-                local messageY = chairs[1].y - 50
+                local messageX = chairs[1].x
+                local messageY = chairs[1].y - 100
 
                 love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
 
@@ -668,6 +685,32 @@ function love.draw()
                 love.graphics.printf("aperte E para interagir", messageX, messageY, 100, "center")
                 love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
             end
+
+            if msgBlockedLevel.unmetRequirements then 
+                -- Posição da mensagem em relação ao jogador
+                local messageX = chairs[msgBlockedLevel.level].x
+                local messageY = chairs[msgBlockedLevel.level].y - 100
+
+                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
+
+                love.graphics.setFont(fontSmall)
+                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
+                love.graphics.printf("Complete o level anterior!", messageX, messageY, 100, "center")
+                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+            end
+
+            if msgBlockedLevel.alreadyFinished then 
+                -- Posição da mensagem em relação ao jogador
+                local messageX = chairs[msgBlockedLevel.level].x
+                local messageY = chairs[msgBlockedLevel.level].y - 100
+
+                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
+
+                love.graphics.setFont(fontSmall)
+                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
+                love.graphics.printf("Voce ja completou esse!", messageX, messageY, 100, "center")
+                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+            end 
             --world:draw()
         cam:detach() 
     end
@@ -909,7 +952,11 @@ function love.keypressed(key)
         sounds.blip:play()
     end
     if key == 'z' then
-        sounds.music:stop()
+        if sounds.music:isPlaying() then
+            sounds.music:pause()
+        else
+            sounds.music:play()
+        end
     end
  
     if key == 'b' then -- Botão para comprar binários
@@ -1096,9 +1143,19 @@ function isNearInteractionObject()
       -- A distância é baseada em uma circuferência de raio 83
       if math.sqrt((playerX - chair.x)^2 + (playerY - chair.y)^2) < 83 then
       -- Verifica se o nível correspondente está ativo
-         if interactionStates[chair.map] then
+         if interactionStates[chair.map] and levelDesbloqueado(chair) then
+            msgBlockedLevel.alreadyFinished = false
+            msgBlockedLevel.unmetRequirements = false
             return true, i
-         end
+         elseif interactionStates[chair.map] == false then
+            msgBlockedLevel.alreadyFinished = true
+            msgBlockedLevel.unmetRequirements = false
+            msgBlockedLevel.level = i
+         else 
+            msgBlockedLevel.unmetRequirements = true
+            msgBlockedLevel.alreadyFinished = false
+            msgBlockedLevel.level = i
+         end 
       end
    end
 
