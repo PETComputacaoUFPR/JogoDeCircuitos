@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<map version="1.8" tiledversion="1.8.2" orientation="orthogonal" renderorder="right-down" width="30" height="50" tilewidth="64" tileheight="64" infinite="0" nextlayerid="24" nextobjectid="87">
+<map version="1.8" tiledversion="1.8.2" orientation="orthogonal" renderorder="right-down" width="30" height="50" tilewidth="64" tileheight="64" infinite="0" nextlayerid="25" nextobjectid="91">
  <editorsettings>
   <export target="../maps/mapaPrincipal2.0.lua" format="lua"/>
  </editorsettings>
@@ -69,6 +69,12 @@
 11,11,11,11,11,11,11,11,11,11,11,11,11,11,16,18,11,11,11,11,11,11,11,11,11,11,11,11,11,11
 </data>
  </layer>
+ <objectgroup id="24" name="Walls">
+  <object id="87" x="-128" y="-64" width="128" height="3456"/>
+  <object id="88" x="-192" y="3200" width="2432" height="192"/>
+  <object id="89" x="1920" y="-64" width="128" height="3328"/>
+  <object id="90" x="-64" y="-128" width="2112" height="128"/>
+ </objectgroup>
  <layer id="16" name="trees" width="30" height="50">
   <data encoding="csv">
 0,87,88,89,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,85,0,0,0,0,

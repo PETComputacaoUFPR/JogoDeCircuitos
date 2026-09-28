@@ -8,8 +8,8 @@ return {
   height = 50,
   tilewidth = 64,
   tileheight = 64,
-  nextlayerid = 24,
-  nextobjectid = 87,
+  nextlayerid = 25,
+  nextobjectid = 91,
   properties = {},
   tilesets = {
     {
@@ -185,6 +185,73 @@ return {
         11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 16, 18, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
         11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 16, 18, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11,
         11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 16, 18, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11, 11
+      }
+    },
+    {
+      type = "objectgroup",
+      draworder = "topdown",
+      id = 24,
+      name = "Walls",
+      visible = true,
+      opacity = 1,
+      offsetx = 0,
+      offsety = 0,
+      parallaxx = 1,
+      parallaxy = 1,
+      properties = {},
+      objects = {
+        {
+          id = 87,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = -128,
+          y = -64,
+          width = 128,
+          height = 3456,
+          rotation = 0,
+          visible = true,
+          properties = {}
+        },
+        {
+          id = 88,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = -192,
+          y = 3200,
+          width = 2432,
+          height = 192,
+          rotation = 0,
+          visible = true,
+          properties = {}
+        },
+        {
+          id = 89,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = 1920,
+          y = -64,
+          width = 128,
+          height = 3328,
+          rotation = 0,
+          visible = true,
+          properties = {}
+        },
+        {
+          id = 90,
+          name = "",
+          type = "",
+          shape = "rectangle",
+          x = -64,
+          y = -128,
+          width = 2112,
+          height = 128,
+          rotation = 0,
+          visible = true,
+          properties = {}
+        }
       }
     },
     {
