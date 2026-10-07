@@ -76,9 +76,8 @@ local chairs = {
     {x = 300, y = 2218, map = "level1", collisionMap = level1Map, requires = {}},
     {x = 1540, y = 2213, map = "level2", collisionMap = level2Map, requires = {"level1"}},
     {x = 290, y = 1573, map = "level3", collisionMap = level3Map, requires = {"level1", "level2"}},
-    {x = 1520, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
-    {x = 300, y = 930, map = "level5", collisionMap = level5Map, requires = {"level1", "level2", "level3", "level4"}},
-    {x = 1540, y = 930, map = "level6", collisionMap = level6Map, requires = {"level1", "level2", "level3", "level4", "level5"}}
+    {x = 1525, y = 1573, map = "level4", collisionMap = level4Map, requires = {"level1", "level2", "level3"}},	
+    {x = 950, y = 225, map = "levelFinal", collisionMap = levelFinalMap, requires = {"level1", "level2", "level3", "level4"}}
 }
 
 -- Posição das moedas no level3
@@ -130,19 +129,35 @@ local CorrectNumberStage4C2 = { 1, 0, 1, 0}
 local previousPlayerX, previousPlayerY
 
 local interactionStates = {
-    level1 = true, 
+    level1 = true,
     level2 = true,
     level3 = true,
     level4 = true,
-    level5 = true,
-    level6 = true
+    levelFinal = true
 }
 
-local autoReturn = {
-    active = false,
-    timer = 0,
-    duration = 3,
-    level = nil
+local linhasTabela = {
+    {0, 0, 0},
+    {0, 0, 1},
+    {0, 1, 0},
+    {0, 1, 1},
+    {1, 0, 0},
+    {1, 0, 1},
+    {1, 1, 0},
+    {1, 1, 1}
+}
+
+local expressoesFinal = {
+    { texto = "S = A AND B", resposta = {0, 0, 0, 0, 0, 0, 1, 1} },
+    { texto = "S = (A OR B) AND NOT C",resposta = {0, 0, 1, 0, 1, 0, 1, 0} },
+    { texto = "S = (A AND NOT B) OR (B AND C)", resposta = {0, 0, 0, 1, 1, 1, 0, 1} }
+}
+
+local faseFinal = {
+    expressaoAtual = 1,
+    celulas = {},
+    mensagem = nil,
+    timerMensagem = 0
 }
 
 -- Mensagem 1 do tutorial
@@ -160,8 +175,9 @@ local npc = {
     animation = nil,
     dialogues = {
         "Ola! Utilize E para interagir comigo!",
-        "Acho que tem um professor bravo na sala",
-        "Fale com ele!"
+        "O jogo tem 5 niveis, voce pode vencer todos.",
+        "Se vencer, sera um vencedor!",
+        "O que esta esperando? Va para o level 1 a esquerda. "
     },
     currentDialogue = 1,
     showDialogue = false
@@ -226,6 +242,57 @@ local function startNewGame ()
     schoolBus.waitTimer = 0
 end
 
+-- Volta o jogo inteiro ao inicio
+local function resetarJogo()
+
+    for nome, _ in pairs(interactionStates) do
+        interactionStates[nome] = true
+    end
+
+    -- portas voltam para o lugar inicial
+    andGate.x, andGate.y, andGate.beingCarried = 863, 744, false
+    andGateExtra.x, andGateExtra.y, andGateExtra.beingCarried = 1064, 800, false
+    orGate.x, orGate.y, orGate.beingCarried = 1064, 994, false
+
+    -- moedas e binarios voltam pro estado inicial
+    for _, coin in ipairs(coins) do
+        coin.Collect = false
+    end
+    DrawBinary = false
+    RealeseBinary = false
+    for _, n in ipairs(numberStage3) do n.num = nil end
+
+    -- tres linhas de numero na fase 4
+    for _, n in ipairs(numberStage4N) do n.num = nil end
+    for _, n in ipairs(numberStage4C1) do n.num = nil end
+    for _, n in ipairs(numberStage4C2) do n.num = nil end
+
+    -- fase final
+    faseFinal.mensagem = nil
+    faseFinal.timerMensagem = 0
+    faseFinal.expressaoAtual = 1
+    limparCelulasFinal()
+
+    -- Volta para o mapa principal e fecha as barreiras
+
+    currentMap = "mainMap"
+    clearColliders()
+    clearBarreiras()
+    
+    loadMapCollisions(gameMap)
+    loadBarreiras()
+end
+
+-- Usada so pelo botao "Jogar" do menu
+local function jogarDoZero()
+    resetarJogo()
+    startNewGame()
+end
+
+local function continueGame()
+    changeGameState("running")
+end
+
 local barreiras = {
     {colisao = "bloqueio_1",
     art = "bloqueioarte_1",
@@ -234,10 +301,6 @@ local barreiras = {
     {colisao = "bloqueio_2",
     art = "bloqueioarte_2",
     requer = {"level3", "level4"}
-    },
-    {colisao = "bloqueio_3",
-    art = "bloqueioarte_3",
-    requer = {"level5", "level6"}
     }
 }
 
@@ -246,6 +309,8 @@ local msgBlockedLevel = {
     unmetRequirements = false,
     alreadyFinished = false
 }
+
+local interactionChairIndex = nil
 
 local function barreiraCumprida(barreira)
     for _, lvl in ipairs(barreira.requer) do
@@ -306,8 +371,9 @@ function love.load()
     level2Map = sti('maps/level2.lua')
     level3Map = sti('maps/level3.lua')
     level4Map = sti('maps/level4.lua')
-    level5Map = sti('maps/level5.lua')
-    level6Map = sti('maps/level6.lua')
+    levelFinalMap = sti('maps/levelFinal.lua')
+
+    carregarCelulasFinal()
 
     -- Texturas
     andGateTexture = love.graphics.newImage('maps/Texture/andlogic.png')
@@ -315,6 +381,8 @@ function love.load()
     schoolBus.texture = love.graphics.newImage('maps/Texture/school_bus.png')
     number0Texture = love.graphics.newImage('maps/Texture/binary0.png')
     number1Texture = love.graphics.newImage('maps/Texture/binary1.png')
+
+    fontDialogo = love.graphics.newFont('libraries/fonts/8-bit-pusab.ttf', 16)
 
     andGate = {
         x = 863,
@@ -417,11 +485,11 @@ function love.load()
 
     loadBarreiras()
 
-    buttons.menu_state.play_game = button("Jogar", startNewGame, nil, 140, 40)
+    buttons.menu_state.play_game = button("Jogar", jogarDoZero, nil, 140, 40)
     buttons.menu_state.settings = button("Ajustes", nil, nil, 140, 40)
     buttons.menu_state.exit_game = button("Sair", love.event.quit, nil, 140, 40)
 
-    buttons.paused_state.replay_game = button("Voltar", startNewGame, nil, 140, 40)
+    buttons.paused_state.replay_game = button("Voltar", continueGame, nil, 140, 40)
     buttons.paused_state.menu = button("Menu", changeGameState, "menu", 140, 40)
     buttons.paused_state.exit_game = button("Sair", love.event.quit, nil, 140, 40)
 
@@ -469,16 +537,14 @@ function love.update(dt)
                 gameIntro.playerVisible = true
             end
         end
-
-        if autoReturn.active then
-            autoReturn.timer = autoReturn.timer + dt
-            if autoReturn.timer >= autoReturn.duration then
-                interactionStates[autoReturn.level] = false -- marca como vencido
-                changeMap("mainMap")
-                autoReturn.active = false
-            end
-        end 
         
+        if currentMap == "levelFinal" and faseFinal.mensagem then
+            faseFinal.timerMensagem = faseFinal.timerMensagem - dt
+            if faseFinal.timerMensagem <= 0 then
+              terminarMensagemFinal()
+            end
+        end
+
         -- Movimento do jogador (só permite se a intro não está ativa OU o ônibus já foi embora)
         if not gameIntro.active or schoolBus.state == "leaving" then
             player.anim:update(dt)
@@ -488,6 +554,7 @@ function love.update(dt)
 
             showInteractionMessage = nearInteraction
 
+            interactionChairIndex = chairIndex
             showInteractionMessage2 = isNearGate(andGate)
 
             -- Verificar proximidade com NPC
@@ -564,11 +631,12 @@ function love.update(dt)
             schoolBus.state = "leaving"
         end
     elseif schoolBus.state == "leaving" then
-        schoolBus.x = schoolBus.x - schoolBus.speed * dt
-        -- Ônibus sai em linha reta (mesma altura Y)
-        -- Remove qualquer modificação de Y para manter trajetória reta
-        if schoolBus.x <= -200 then
-            schoolBus.x = -200
+        schoolBus.x = schoolBus.x + schoolBus.speed * dt
+
+        local larguraMapa = gameMap.width * gameMap.tilewidth
+        local larguraOnibus = schoolBus.texture:getWidth() * schoolBus.scale
+
+        if schoolBus.x >= larguraMapa + larguraOnibus then
             schoolBus.state = "gone"
         end
     end
@@ -599,8 +667,7 @@ function love.update(dt)
     elseif currentMap == "level2" then activeMap = level2Map
     elseif currentMap == "level3" then activeMap = level3Map
     elseif currentMap == "level4" then activeMap = level4Map
-    elseif currentMap == "level5" then activeMap = level5Map
-    elseif currentMap == "level6" then activeMap = level6Map
+    elseif currentMap == "levelFinal" then activeMap = levelFinalMap
     end
     
     local mapW = activeMap.width * activeMap.tilewidth
@@ -651,6 +718,10 @@ function love.draw()
 
             gameMap:drawLayer(gameMap.layers["doors"]) --desenhando portas
 
+            -- Só desenha o jogador se ele estiver visível (não dentro do ônibus)
+            if not gameIntro.active or gameIntro.playerVisible then
+                player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
+            end
 
             -- Desenha o ônibus escolar se estiver ativo (dentro da câmera)
             if gameIntro.active then
@@ -658,58 +729,25 @@ function love.draw()
                 -- Virar o ônibus horizontalmente (escala X negativa)
                 love.graphics.draw(schoolBus.texture, schoolBus.x, schoolBus.y, 0, -schoolBus.scale, schoolBus.scale)
             end
-            
-            -- Só desenha o jogador se ele estiver visível (não dentro do ônibus)
-            if not gameIntro.active or gameIntro.playerVisible then
-                player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
-            end
 
             -- Desenhar NPC
             npc.animation:draw(npc.spriteSheet, npc.x, npc.y, nil, 5, nil, 6, 9)
 
             -- Mostrar diálogo do NPC se estiver próximo
             if npc.showDialogue then
-               DrawBalloon(npc)
-	            DrawText(npc)
+                drawBalloon(npc.dialogues[npc.currentDialogue], npc.x, npc.y - 50, 280, fontDialogo)
             end
 
             if showInteractionMessage then
-                -- Posição da mensagem em relação ao jogador
-                local messageX = chairs[1].x
-                local messageY = chairs[1].y - 100
-
-                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
-
-                love.graphics.setFont(fontSmall)
-                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
-                love.graphics.printf("aperte E para interagir", messageX, messageY, 100, "center")
-                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+                desenharMensagemPorta("aperte E para interagir", interactionChairIndex)
             end
 
             if msgBlockedLevel.unmetRequirements then 
-                -- Posição da mensagem em relação ao jogador
-                local messageX = chairs[msgBlockedLevel.level].x
-                local messageY = chairs[msgBlockedLevel.level].y - 100
-
-                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
-
-                love.graphics.setFont(fontSmall)
-                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
-                love.graphics.printf("Complete o level anterior!", messageX, messageY, 100, "center")
-                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+                desenharMensagemPorta("Complete o level anterior!", msgBlockedLevel.level)
             end
 
             if msgBlockedLevel.alreadyFinished then 
-                -- Posição da mensagem em relação ao jogador
-                local messageX = chairs[msgBlockedLevel.level].x
-                local messageY = chairs[msgBlockedLevel.level].y - 100
-
-                love.graphics.draw(balloonImage, messageX - 30, messageY - 15)
-
-                love.graphics.setFont(fontSmall)
-                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
-                love.graphics.printf("Voce ja completou esse!", messageX, messageY, 100, "center")
-                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+                desenharMensagemPorta("Voce ja completou esse level!", msgBlockedLevel.level)
             end 
             --world:draw()
         cam:detach() 
@@ -723,19 +761,13 @@ function love.draw()
             love.graphics.draw(andGateTexture, andGate.x, andGate.y)
 
             if showInteractionMessage2 then
-                -- Posição da mensagem em relação ao jogador
-                local messageX = andGate.x - 30
-                local messageY = andGate.y - 50
-
-                love.graphics.draw(balloonImage, messageX - 30, messageY - 18)
-                love.graphics.setFont(fontSmaller)
-                love.graphics.setColor(0, 0, 0, 1) -- Cor preta
-                love.graphics.printf("aperte E para pegar/soltar a porta logica", messageX, messageY, 100, "center")
-                love.graphics.setColor(1, 1, 1, 1) -- Resetando cor para branco
+                local cx = andGate.x + andGateTexture:getWidth() / 2
+                drawBalloon("aperte E para interagir", cx, andGate.y - 10, 200, fontDialogo)
             end
 
             player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
             --world:draw()
+
         cam:detach() 
     end
 
@@ -758,25 +790,24 @@ function love.draw()
             level3Map:drawLayer(level3Map.layers["Ground"]) --desenhando chão
             -- removi porque estava dando erro
             --level3Map:drawLayer(level3Map.layers["letters"]) --desenhando o puzzle
-	    
-	         -- Desenhar moedas e apagá-las ao passar com o player por cima
-            for i, coin in ipairs(coins) do
-                RealeseBinary = false 
-		            if not coin.Collect then
-                     CoinAnim:draw(CoinSprite, coin.x, coin.y, 0, 3, 3, 8, 8)
-		                  if isClose(coin.x, coin.y, "COIN") then 
-		                     coin.Collect = true
-		                  end
-		            else RealeseBinary = true
-	               end	
-	         end
+            
+            RealeseBinary = true
+	        -- Desenhar moedas e apagá-las ao passar com o player por cima
+             for i, coin in ipairs(coins) do
+                if not coin.Collect then
+                    RealeseBinary = false
+                    CoinAnim:draw(CoinSprite, coin.x, coin.y, 0, 3, 3, 8, 8)
+                    if isClose(coin.x, coin.y, "COIN") then
+                        coin.Collect = true
+                    end
+                end
+             end
 	   
             -- Desenhar NPC
             npcAlbini.animation:draw(npcAlbini.spriteSheet, npcAlbini.x, npcAlbini.y, nil, 5, nil, 6, 9)
 
             if npcAlbini.showDialogue then
-               DrawBalloon(npcAlbini)
-		         DrawText(npcAlbini)
+                drawBalloon(npcAlbini.dialogues[npcAlbini.currentDialogue], npcAlbini.x, npcAlbini.y - 50, 280, fontDialogo)
             end
             
             -- Desenhar todos os numeros "0" e "1"
@@ -803,18 +834,14 @@ function love.draw()
         cam:detach()
     end
 
-    if currentMap == "level5" then
+    if currentMap == "levelFinal" then
         cam:attach()
-        level5Map:drawLayer(level5Map.layers["Ground"])
+        levelFinalMap:drawLayer(levelFinalMap.layers["Ground"])
+        levelFinalMap:drawLayer(levelFinalMap.layers["Decoracao"])
+        desenharTabelaFinal()
         player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
         cam:detach()
-    end
-
-    if currentMap == "level6" then
-        cam:attach()
-        level6Map:drawLayer(level6Map.layers["Ground"])
-        player.anim:draw(player.spriteSheet, player.x, player.y, nil, 5, nil, 6, 9) --desenhando o boneco
-        cam:detach()
+        desenharHUDFinal()
     end
 
 
@@ -1009,14 +1036,6 @@ function love.keypressed(key)
                if currentMap == "mainMap" then
                     changeMap(chairMap)
                     --print("Mudou para mapa"..chairMap)
-                    -- roda 5 e 6
-                    if chairMap == "level5" or chairMap == "level6" then
-                        autoReturn.active = true
-                        autoReturn.timer = 0
-                        autoReturn.level = chairMap
-                    end
-                elseif currentMap == chairMap then 
-                  changeMap("mainMap")
                end
             end
             
@@ -1049,7 +1068,12 @@ function love.keypressed(key)
                ChangeNumber(numberStage4C2)
                checkGatePositions()
 	         end
-        end
+
+             if currentMap == "levelFinal" and faseFinal.mensagem ~= "correto" and faseFinal.mensagem ~= "venceu" then
+                alternarCelulaFinal()
+                verificarRespostaFinal()
+             end
+        end 
     end
 
     if key == 'p' then -- Pressione 'p' para ver a posição
@@ -1139,6 +1163,8 @@ end
 function isNearInteractionObject()
     local playerX, playerY = player.x, player.y  -- Posições do jogador
 
+    msgBlockedLevel.alreadyFinished = false
+    msgBlockedLevel.unmetRequirements = false
    -- Verifica se o jogador está perto de qualquer cadeira e retorna o índice
 
    for i, chair in ipairs(chairs) do
@@ -1196,17 +1222,12 @@ function changeMap(newMap)
       player.collider:setPosition(1210,1340)
       player.x = 1210
       player.y = 1340
-    elseif newMap == "level5" then
-        loadMapCollisions(level5Map)
-        player.collider:setPosition(1350,775)
-        player.x = 1350
-        player.y = 775
-    elseif newMap == "level6" then
-        loadMapCollisions(level6Map)
-        player.collider:setPosition(1350,775)
-        player.x = 1350
-        player.y = 775
-     end
+    elseif newMap == "levelFinal" then
+        loadMapCollisions(levelFinalMap)
+        player.collider:setPosition(1150, 1300)
+        player.x = 1150
+        player.y = 1300
+    end
 
 end
 
@@ -1271,16 +1292,6 @@ function clearColliders()
     walls = {}
 end
 
--- Função para calcular posição do balão relativa ao NPC
-function DrawBalloon(npc)
-    local balloonX = npc.x - 70
-    local balloonY = npc.y - 130
-    -- novo npc x = 1708 e y = 1700
-    -- Desenhar o balão
-    love.graphics.setColor(1, 1, 1, 1) -- Cor branca para o balão
-    love.graphics.draw(balloonImage, balloonX, balloonY)
-end
-
 --[[ Função para calcular posição do texto dentro do 
 balão (ajustada para ficar centralizada) e desenhar a 
 mensagem ]]--
@@ -1324,4 +1335,271 @@ function loadMapCollisions(map)
             end
         end
     end
+end
+
+-- le as celulas S1 ate S8 do levelFinal
+function carregarCelulasFinal()
+    faseFinal.celulas = {}
+
+    local camada = levelFinalMap.layers["Celulas"]
+    
+    for _, obj in ipairs(camada.objects) do
+        local i = tonumber(string.sub(obj.name, 2))
+
+        faseFinal.celulas[i] = {
+            x = obj.x + obj.width / 2,
+            y = obj.y + obj.height / 2,
+            num = nil
+        }
+    end
+
+
+end
+
+-- desenha 0 ou 1 centralizado em x y 
+function desenharBinario(valor, x, y)
+    local textura = nil
+    
+    if valor == 0 then
+        textura = number0Texture
+    elseif valor == 1 then
+        textura = number1Texture
+    end
+
+    love.graphics.draw(textura, x, y, 0, 0.5, 0.5, textura:getWidth() / 2, textura:getHeight() / 2)
+end
+
+-- colunas A, B, C e S (preenchida pelo jogador)
+function desenharTabelaFinal()
+    
+    local primeira = faseFinal.celulas[1]
+
+    local ultima = faseFinal.celulas[#faseFinal.celulas]
+
+    love.graphics.setColor(1,1,0,0.15)
+    love.graphics.rectangle("fill",
+    primeira.x - 64, primeira.y - 64,
+    128, (ultima.y + 64) - (primeira.y - 64))
+    love.graphics.setColor(1,1,1,1)
+
+    local fonteAnterior = love.graphics.getFont()
+    local fonteTitulo = fonts.massive.font
+    love.graphics.setFont(fonteTitulo)
+
+    local yTitulo = primeira.y - 128 - fonteTitulo:getHeight() / 2
+
+    local titulos = {"A", "B", "C", "S"}
+    for col, letra in ipairs(titulos) do
+        local cx = primeira.x - (4 - col) * 128
+        love.graphics.printf(letra, cx - 64, yTitulo, 128, "center")
+    end
+
+    love.graphics.setFont(fonteAnterior)
+
+    for i, celula in ipairs(faseFinal.celulas) do
+        -- Bordas das 4 celulas da linha (A, B, C, S)
+        for col = 1, 4 do
+            local cx = celula.x - (4 - col) * 128
+            love.graphics.rectangle("line", cx - 64, celula.y - 64, 128, 128)
+        end
+
+        for col = 1, 3 do
+            desenharBinario(linhasTabela[i][col], celula.x - (4 - col) * 128, celula.y)
+        end
+
+        -- Valor de S escolhido pelo jogador (se ja tiver)
+        if celula.num ~= nil then
+            desenharBinario(celula.num, celula.x, celula.y)
+        end
+    end
+
+    love.graphics.setColor(1, 1, 1, 1)
+
+end
+
+function alternarCelulaFinal()
+    local maisProxima = nil
+    local menorDistancia = 70 
+
+    for _, c in ipairs(faseFinal.celulas) do
+        local distancia = math.sqrt((player.x - c.x)^2 + (player.y - c.y)^2)
+        if distancia < menorDistancia then
+            menorDistancia = distancia
+            maisProxima = c
+        end
+    end
+
+    if maisProxima then
+        if maisProxima.num == 0 then
+            maisProxima.num = 1
+        else
+            maisProxima.num = 0
+        end
+
+        sounds.blip:stop()
+        sounds.blip:play()
+    end
+
+end
+
+function verificarRespostaFinal()
+    for _, c in ipairs(faseFinal.celulas) do
+        if c.num == nil then
+            return
+        end
+    end
+    
+    local resposta = expressoesFinal[faseFinal.expressaoAtual].resposta
+
+    local tudoCerto = true
+    for i, c in ipairs(faseFinal.celulas) do
+        if c.num ~= resposta[i] then
+            tudoCerto = false
+            break
+        end
+    end
+    
+    if tudoCerto then
+        mostrarMensagemFinal("correto", 2)
+        sounds.blip:stop()
+        sounds.blip:play()
+    else
+        mostrarMensagemFinal("errado", 1.5)
+    end
+end
+
+function desenharHUDFinal()
+    local w = love.graphics.getWidth()
+    local h = love.graphics.getHeight()
+    local fonteAnterior = love.graphics.getFont()
+
+    love.graphics.setColor(0, 0, 0, 0.7)
+    love.graphics.rectangle("fill", 10, 10, w - 20, 60, 8, 8)
+    love.graphics.setColor(1, 1, 1, 1)
+
+    love.graphics.setFont(fonts.medium.font)
+    love.graphics.printf( "Expressão " .. faseFinal.expressaoAtual .. "/" .. #expressoesFinal, 0, 16, w, "center")
+
+    love.graphics.setFont(fonts.large.font)
+    love.graphics.printf(expressoesFinal[faseFinal.expressaoAtual].texto, 0, 38, w, "center")
+
+    -- caixinha no meio da tela
+
+    if faseFinal.mensagem ~= nil then
+        local texto = ""
+
+        if faseFinal.mensagem == "correto" then
+            if faseFinal.expressaoAtual < #expressoesFinal then
+                texto = "Correto! Proxima expressao..."
+            else
+                texto = "Correto!"
+            end
+            love.graphics.setColor(0, 0.5, 0, 0.8)
+        elseif faseFinal.mensagem == "errado" then
+            texto = "Algo esta errado, confira!"
+            love.graphics.setColor(0.6, 0, 0, 0.8)
+        elseif faseFinal.mensagem == "venceu" then
+            texto = "Parabens! Voce venceu o jogo!"
+            love.graphics.setColor(0, 0.5, 0, 0.8)
+        end
+
+        -- caixa
+        local caixaW = 500
+        local caixaH = 80
+        local caixaX = (w - caixaW) / 2
+        local caixaY = (h - caixaH) / 2
+        love.graphics.rectangle("fill", caixaX, caixaY, caixaW, caixaH, 8, 8)
+
+        -- Texto
+        love.graphics.setColor(1, 1, 1, 1)
+        love.graphics.setFont(fonts.large.font)
+        local textoY = caixaY + (caixaH - fonts.large.font:getHeight()) / 2
+        love.graphics.printf(texto, caixaX, textoY, caixaW, "center")
+    end
+
+    love.graphics.setFont(fonteAnterior)
+end
+
+function mostrarMensagemFinal(tipo, segundos)
+    faseFinal.mensagem = tipo
+    faseFinal.timerMensagem = segundos
+end
+
+function limparCelulasFinal()
+    for _, cel in ipairs(faseFinal.celulas) do
+        cel.num = nil
+    end
+end
+
+function terminarMensagemFinal()
+    if faseFinal.mensagem == "errado" then
+        faseFinal.mensagem = nil
+
+    elseif faseFinal.mensagem == "correto" then
+        if faseFinal.expressaoAtual < #expressoesFinal then
+            faseFinal.expressaoAtual = faseFinal.expressaoAtual + 1
+            limparCelulasFinal()
+            faseFinal.mensagem = nil
+        else
+            mostrarMensagemFinal("venceu", 4)
+        end
+
+    elseif faseFinal.mensagem == "venceu" then
+        vencerJogo()
+    end
+end
+
+function vencerJogo()
+    interactionStates.levelFinal = false
+
+    faseFinal.mensagem = nil
+    faseFinal.timerMensagem = 0
+    faseFinal.expressaoAtual = 1
+    limparCelulasFinal()
+    
+    changeMap("mainMap")
+    changeGameState("menu")
+
+end
+
+function drawBalloon(texto, cx, baseY, larguraMax, fonte)
+    local fonteAnterior = love.graphics.getFont()
+    local padding = 12
+
+    local _, linhas = fonte:getWrap(texto, larguraMax)
+    local larguraTexto = 0
+    for _, linha in ipairs(linhas) do
+        larguraTexto = math.max(larguraTexto, fonte:getWidth(linha))
+    end
+    local alturaTexto = #linhas * fonte:getHeight()
+
+
+    local w = larguraTexto + padding * 2
+    local h = alturaTexto + padding * 2
+    local x = math.floor(cx - w / 2)
+    local y = math.floor(baseY - h - 10)
+
+    
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.rectangle("fill", x, y, w, h, 6, 6)
+    love.graphics.polygon("fill", cx - 8, y + h, cx + 8, y + h, cx, y + h + 10)
+    love.graphics.setColor(0, 0, 0, 1)
+    love.graphics.setLineWidth(3)
+    love.graphics.rectangle("line", x, y, w, h, 6, 6)
+    love.graphics.setLineWidth(1)
+
+    love.graphics.setFont(fonte)
+    for i, linha in ipairs(linhas) do
+        local lx = math.floor(cx - fonte:getWidth(linha) / 2)
+        local ly = y + padding + (i - 1) * fonte:getHeight()
+        love.graphics.print(linha, lx, ly)
+    end
+
+    love.graphics.setColor(1, 1, 1, 1)
+    love.graphics.setFont(fonteAnterior)
+end
+
+function desenharMensagemPorta(texto, indiceCadeira)
+    local chair = chairs[indiceCadeira]
+    drawBalloon(texto, chair.x + 33, chair.y - 33, 200, fontDialogo)
 end
